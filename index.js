@@ -73,13 +73,7 @@ app.post('/whatsapp', async (req, res) => {
       return res.send("Lo siento, el producto no está disponible en este momento.");
     }
 
-    const cleanDescription = product.body_html.replace(/</?[^>]+(>|$)/g, '');
-    const productText = `
-📦 Producto: ${product.title}
-✅ Descripción: ${cleanDescription}
-💰 Precio: ${product.variants[0].price}
-🛒 Link de compra: https://${SHOPIFY_STORE_URL}/products/${product.handle}
-    `;
+    const cleanDescription = product.body_html ? product.body_html.replace(/<\/?[^>]+(>|$)/g, '') : 'Descripción no disponible';
 
     // Construcción del prompt basado en el guion de ventas optimizado
     const prompt = `
@@ -105,7 +99,7 @@ Juan es un barista profesional y asesor en café. Su misión es vender la Coffee
 `;
 
     // Llamar a OpenAI para generar respuesta
-    const openaiResponse = await openai.chat.completions.create({
+    const openaiResponse = await openai.completions.create({
       model: 'gpt-4-turbo',
       messages: [{ role: "user", content: prompt }],
       max_tokens: 200,
