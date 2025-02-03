@@ -8,7 +8,7 @@ const app = express();
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 
-// Configurar OpenAI correctamente
+// Configurar OpenAI
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
@@ -18,70 +18,97 @@ const { TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN } = process.env;
 const client = twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
 const { MessagingResponse } = twilio.twiml;
 
-// Configurar Shopify
+// Configurar Shopify con las correcciones
 const SHOPIFY_STORE_URL = process.env.SHOPIFY_STORE_URL;
 const SHOPIFY_API_VERSION = process.env.SHOPIFY_API_VERSION;
 const SHOPIFY_ADMIN_TOKEN = process.env.SHOPIFY_ADMIN_TOKEN;
-const PRODUCT_ID = "9535019647283"; // ID del producto Coffee Maker en Shopify
+const SHOPIFY_API_KEY = process.env.SHOPIFY_API_KEY;
+const SHOPIFY_API_SECRET = process.env.SHOPIFY_API_SECRET;
+const PRODUCT_ID = "9535019647283"; // Reemplázalo con el ID correcto
+
+// Función para obtener el producto desde Shopify con correcciones
+async function getProductFromShopify() {
+  try {
+    const response = await axios.get(
+      `https://${SHOPIFY_STORE_URL}/admin/api/${SHOPIFY_API_VERSION}/products/${PRODUCT_ID}.json`,
+      {
+        headers: {
+          'X-Shopify-Access-Token': SHOPIFY_ADMIN_TOKEN,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    return response.data.product;
+  } catch (error) {
+    console.error("❌ Error con el Admin Token, intentando con Basic Auth...");
+
+    try {
+      const response = await axios.get(
+        `https://${SHOPIFY_STORE_URL}/admin/api/${SHOPIFY_API_VERSION}/products/${PRODUCT_ID}.json`,
+        {
+          auth: {
+            username: SHOPIFY_API_KEY,
+            password: SHOPIFY_API_SECRET,
+          },
+        }
+      );
+      return response.data.product;
+    } catch (error) {
+      console.error("❌ Error al obtener el producto de Shopify:", error.response?.data || error.message);
+      return null;
+    }
+  }
+}
 
 // Endpoint de WhatsApp
 app.post('/whatsapp', async (req, res) => {
   try {
     const incomingMsg = req.body.Body.trim();
-    console.log('Mensaje entrante:', incomingMsg);
+    console.log('📩 Mensaje entrante:', incomingMsg);
 
-    // Obtener detalles del producto específico desde Shopify
-    const shopifyResponse = await axios.get(
-      `https://${SHOPIFY_STORE_URL}/admin/api/${SHOPIFY_API_VERSION}/products/${PRODUCT_ID}.json`,
-      {
-        headers: { 'X-Shopify-Access-Token': SHOPIFY_ADMIN_TOKEN },
-      }
-    );
+    // Obtener el producto desde Shopify
+    const product = await getProductFromShopify();
 
-    const product = shopifyResponse.data.product;
-    let productText = 'No se encontró información del producto.';
+    if (!product) {
+      return res.send("Lo siento, el producto no está disponible en este momento.");
+    }
 
-    if (product) {
-      const cleanDescription = product.body_html.replace(/<\/?[^>]+(>|$)/g, '');
-      productText = `
+    const cleanDescription = product.body_html.replace(/<\/?[^>]+(>|$)/g, '');
+    const productText = `
 📦 Producto: ${product.title}
 ✅ Descripción: ${cleanDescription}
 💰 Precio: ${product.variants[0].price}
 🛒 Link de compra: https://${SHOPIFY_STORE_URL}/products/${product.handle}
-      `;
-    }
+    `;
 
-    // Prompt corregido con formato adecuado
+    // Construcción del prompt basado en el guion de ventas
     const prompt = `
-Juan es un barista profesional y asesor en café, con un conocimiento profundo sobre café y máquinas para su preparación. 
-Su misión es vender la Coffee Maker a clientes interesados en preparar café de calidad en casa.
+Juan es un barista profesional y asesor en café. Su misión es vender la Coffee Maker a clientes interesados en preparar café de calidad en casa.
 
 📌 **Guion de ventas estructurado en 5 interacciones:**
-
-1️⃣ **Saludo e identificación de la necesidad**:
+1️⃣ **Saludo e identificación de la necesidad**
    - Si el cliente menciona café, cafetera, espresso, cappuccino o similar, Juan lo saluda cordialmente, se presenta y confirma si su ubicación aplica para **envío gratis y pago contra entrega**.
    - Luego pregunta: "¿Deseas conocer nuestros precios?".
 
-2️⃣ **Presentación del producto y precios**:
-   - Si el cliente muestra interés, Juan le presenta la **Coffee Maker**, destacando sus ventajas:
+2️⃣ **Presentación del producto y precios**
+   - Si el cliente muestra interés, Juan le presenta la **Coffee Maker**:
      - ☕ Preparación de espresso y cappuccino en casa con calidad profesional.
      - 🚚 Envío gratis con pago contra entrega.
      - 🔥 Alta presión de 15 bares para un café intenso y aromático.
      - 🛠 Fácil de usar y limpiar.
-   - Estructura de precios en estilo lista:
+   - Estructura de precios:
      📦 Producto: Coffee Maker
      ✅ Envío Gratis
      💰 Precio: ${product.variants[0].price}
      🛒 Pagas al recibir.
    - Luego pregunta: "¿Para qué uso deseas la Coffee Maker?".
 
-3️⃣ **Conexión con la necesidad del cliente**:
+3️⃣ **Conexión con la necesidad del cliente**
    - Basado en la respuesta del cliente, Juan explica cómo la Coffee Maker le facilitará la vida.
-   - Destaca beneficios clave dependiendo del uso mencionado.
    - Luego pregunta: "¿Deseas que te enviemos el producto y lo pagas al recibir?".
 
-4️⃣ **Captura de datos para el pedido**:
-   - Si el cliente confirma la compra, Juan le solicita los siguientes datos en formato claro:
+4️⃣ **Captura de datos para el pedido**
+   - Si el cliente confirma la compra, Juan le solicita los siguientes datos:
      ✍️ Para confirmar tu pedido, indícame:
      1️⃣ Nombre
      2️⃣ Apellido
@@ -90,15 +117,6 @@ Su misión es vender la Coffee Maker a clientes interesados en preparar café de
      5️⃣ Ciudad
      6️⃣ Dirección
      7️⃣ Color deseado
-
-5️⃣ **Verificación final del pedido**:
-   - Juan devuelve los datos en el mismo formato y pregunta si están correctos.
-   - Si el cliente confirma, finaliza con: "¡Todo confirmado! 🎉 Tu Coffee Maker llegará pronto.".
-
-✅ **Manejo de Objeciones**:
-- 💰 Si el cliente menciona el precio: Explica que es una inversión en café de calidad, evitando gastos en cafeterías.
-- 🏬 Si pregunta por tienda física: Indica que el centro de distribución está en Cali y no hay mostrador, pero hay envíos a toda Colombia.
-- 🔎 Si pregunta por la marca: Responde que la marca es **RAF**, con **3 meses de garantía**.
 
 👥 **Mensaje del cliente**: "${incomingMsg}"
 `;
@@ -112,7 +130,7 @@ Su misión es vender la Coffee Maker a clientes interesados en preparar café de
     });
 
     const botAnswer = openaiResponse.choices[0].message.content.trim();
-    console.log('Respuesta generada:', botAnswer);
+    console.log('🤖 Respuesta generada:', botAnswer);
 
     // Enviar respuesta por Twilio
     const twiml = new MessagingResponse();
@@ -120,12 +138,12 @@ Su misión es vender la Coffee Maker a clientes interesados en preparar café de
     res.type('text/xml');
     res.send(twiml.toString());
   } catch (error) {
-    console.error('Error:', error?.response?.data || error.message);
+    console.error("❌ Error en el chatbot:", error?.response?.data || error.message);
     res.status(500).send('Error interno del servidor');
   }
 });
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Servidor en ejecución en http://localhost:${PORT}`);
+  console.log(`🚀 Servidor en ejecución en http://localhost:${PORT}`);
 });
