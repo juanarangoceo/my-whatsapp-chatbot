@@ -73,7 +73,9 @@ app.post('/whatsapp', async (req, res) => {
       return res.send("Lo siento, el producto no está disponible en este momento.");
     }
 
-    const cleanDescription = product.body_html ? product.body_html.replace(/</?[^>]+(>|$)/g, '') : 'Descripción no disponible';
+    const cleanDescription = product.body_html 
+      ? product.body_html.replace(/<\/?[^>]+(>|$)/g, '') 
+      : 'Descripción no disponible';
 
     // Construcción del prompt basado en el guion de ventas optimizado
     const prompt = `
@@ -113,7 +115,7 @@ Juan es un barista profesional y asesor en café. Su misión es vender la Coffee
         temperature: 0.7,
       });
 
-      const botAnswer = openaiResponse.choices[0]?.message?.content?.trim() || "Lo siento, no entendí tu pregunta.";
+      const botAnswer = openaiResponse.choices?.[0]?.message?.content?.trim() || "Lo siento, no entendí tu pregunta.";
 
       console.log('🤖 Respuesta generada:', botAnswer);
 
