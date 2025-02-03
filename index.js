@@ -73,7 +73,7 @@ app.post('/whatsapp', async (req, res) => {
       return res.send("Lo siento, el producto no está disponible en este momento.");
     }
 
-    const cleanDescription = product.body_html ? product.body_html.replace(/<\/?[^>]+(>|$)/g, '') : 'Descripción no disponible';
+    const cleanDescription = product.body_html ? product.body_html.replace(/</?[^>]+(>|$)/g, '') : 'Descripción no disponible';
 
     // Construcción del prompt basado en el guion de ventas optimizado
     const prompt = `
@@ -98,22 +98,35 @@ Juan es un barista profesional y asesor en café. Su misión es vender la Coffee
 👥 **Mensaje del cliente:** "${incomingMsg}"
 `;
 
+    // Verifica que el prompt no esté vacío antes de enviarlo
+    if (!prompt || prompt.trim() === "") {
+      console.error("❌ Error: El prompt está vacío. No se enviará la solicitud a OpenAI.");
+      return res.status(400).json({ error: "El prompt no puede estar vacío." });
+    }
+
     // Llamar a OpenAI para generar respuesta
-    const openaiResponse = await openai.completions.create({
-      model: 'gpt-4-turbo',
-      messages: [{ role: "user", content: prompt }],
-      max_tokens: 200,
-      temperature: 0.7,
-    });
+    try {
+      const openaiResponse = await openai.chat.completions.create({
+        model: 'gpt-4-turbo',
+        messages: [{ role: "user", content: prompt }],
+        max_tokens: 200,
+        temperature: 0.7,
+      });
 
-    const botAnswer = openaiResponse.choices[0].message.content.trim();
-    console.log('🤖 Respuesta generada:', botAnswer);
+      const botAnswer = openaiResponse.choices[0]?.message?.content?.trim() || "Lo siento, no entendí tu pregunta.";
 
-    // Enviar respuesta por Twilio
-    const twiml = new MessagingResponse();
-    twiml.message(botAnswer);
-    res.type('text/xml');
-    res.send(twiml.toString());
+      console.log('🤖 Respuesta generada:', botAnswer);
+
+      // Enviar respuesta por Twilio
+      const twiml = new MessagingResponse();
+      twiml.message(botAnswer);
+      res.type('text/xml');
+      res.send(twiml.toString());
+
+    } catch (error) {
+      console.error("❌ Error en OpenAI:", error.response?.data || error.message);
+      res.status(500).json({ error: "Error interno al procesar la solicitud de OpenAI" });
+    }
   } catch (error) {
     console.error("❌ Error en el chatbot:", error?.response?.data || error.message);
     res.status(500).send('Error interno del servidor');
