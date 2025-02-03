@@ -39,8 +39,8 @@ app.post('/whatsapp', async (req, res) => {
       const openaiResponse = await openai.chat.completions.create({
         model: 'gpt-4-turbo',
         messages: [{ role: "user", content: prompt }],
-        max_tokens: 500,
-        temperature: 0.7,
+        max_tokens: 300,  // Respuestas cortas y precisas
+        temperature: 0.5,  // Menos creatividad, más precisión en respuestas
       });
 
       const botAnswer = openaiResponse.choices?.[0]?.message?.content?.trim() || "Lo siento, no entendí tu pregunta.";
