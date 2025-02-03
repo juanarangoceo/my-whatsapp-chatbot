@@ -19,64 +19,11 @@ const { TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN } = process.env;
 const client = twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
 const MessagingResponse = twilio.twiml.MessagingResponse;
 
-// Configurar Shopify con las correcciones
-const SHOPIFY_STORE_URL = process.env.SHOPIFY_STORE_URL;
-const SHOPIFY_API_VERSION = process.env.SHOPIFY_API_VERSION;
-const SHOPIFY_ADMIN_TOKEN = process.env.SHOPIFY_ADMIN_TOKEN;
-const SHOPIFY_API_KEY = process.env.SHOPIFY_API_KEY;
-const SHOPIFY_API_SECRET = process.env.SHOPIFY_API_SECRET;
-const PRODUCT_ID = "9535019647283"; // Reemplázalo con el ID correcto
-
-// Función para obtener el producto desde Shopify con correcciones
-async function getProductFromShopify() {
-  try {
-    const response = await axios.get(
-      `https://${SHOPIFY_STORE_URL}/admin/api/${SHOPIFY_API_VERSION}/products/${PRODUCT_ID}.json`,
-      {
-        headers: {
-          'X-Shopify-Access-Token': SHOPIFY_ADMIN_TOKEN,
-          'Content-Type': 'application/json'
-        }
-      }
-    );
-    return response.data.product;
-  } catch (error) {
-    console.error("❌ Error con el Admin Token, intentando con Basic Auth...");
-
-    try {
-      const response = await axios.get(
-        `https://${SHOPIFY_STORE_URL}/admin/api/${SHOPIFY_API_VERSION}/products/${PRODUCT_ID}.json`,
-        {
-          auth: {
-            username: SHOPIFY_API_KEY,
-            password: SHOPIFY_API_SECRET,
-          },
-        }
-      );
-      return response.data.product;
-    } catch (error) {
-      console.error("❌ Error al obtener el producto de Shopify:", error.response?.data || error.message);
-      return null;
-    }
-  }
-}
-
 // Endpoint de WhatsApp
 app.post('/whatsapp', async (req, res) => {
   try {
     const incomingMsg = req.body.Body.trim();
     console.log('📩 Mensaje entrante:', incomingMsg);
-
-    // Obtener el producto desde Shopify
-    const product = await getProductFromShopify();
-
-    if (!product) {
-      return res.send("Lo siento, el producto no está disponible en este momento.");
-    }
-
-    const cleanDescription = product.body_html 
-      ? product.body_html.replace(/</?[^>]+(>|$)/g, '') 
-      : 'Descripción no disponible';
 
     // Obtener el prompt desde el archivo externo
     const prompt = getPrompt(incomingMsg);
@@ -92,7 +39,7 @@ app.post('/whatsapp', async (req, res) => {
       const openaiResponse = await openai.chat.completions.create({
         model: 'gpt-4-turbo',
         messages: [{ role: "user", content: prompt }],
-        max_tokens: 200,
+        max_tokens: 500,
         temperature: 0.7,
       });
 
