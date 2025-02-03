@@ -5,8 +5,6 @@ const { Configuration, OpenAIApi } = require('openai');
 const twilio = require('twilio');
 
 const app = express();
-
-// Twilio: parseamos datos de formularios y JSON
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 
@@ -25,51 +23,47 @@ const { MessagingResponse } = twilio.twiml;
 const SHOPIFY_STORE_URL = process.env.SHOPIFY_STORE_URL;
 const SHOPIFY_API_VERSION = process.env.SHOPIFY_API_VERSION;
 const SHOPIFY_ADMIN_TOKEN = process.env.SHOPIFY_ADMIN_TOKEN;
+const PRODUCT_ID = "9535019647283"; // ID del producto Coffee Maker en Shopify
 
-// Endpoint principal de WhatsApp
+// Endpoint de WhatsApp
 app.post('/whatsapp', async (req, res) => {
   try {
-    // Este campo Body es el texto que el usuario envía por WhatsApp
-    const incomingMsg = req.body.Body || '';
-    console.log('Mensaje entrante del usuario:', incomingMsg);
+    const incomingMsg = req.body.Body.trim();
+    console.log('Mensaje entrante:', incomingMsg);
 
-    // 1. Obtener datos de producto desde Shopify
-    //    -> En la práctica, podrías filtrar por ID, nombre, etc.
-    //       Aquí, obtendremos todos y tomamos el primero a modo de demo.
+    // Obtener detalles del producto específico desde Shopify
     const shopifyResponse = await axios.get(
-      `https://${SHOPIFY_STORE_URL}/admin/api/${SHOPIFY_API_VERSION}/products.json`,
+      `https://${SHOPIFY_STORE_URL}/admin/api/${SHOPIFY_API_VERSION}/products/${PRODUCT_ID}.json`,
       {
-        headers: {
-          'X-Shopify-Access-Token': SHOPIFY_ADMIN_TOKEN,
-        },
+        headers: { 'X-Shopify-Access-Token': SHOPIFY_ADMIN_TOKEN },
       }
     );
 
-    const products = shopifyResponse.data.products;
-    let productText = 'No se encontró ningún producto.';
-    if (products.length > 0) {
-      const product = products[0]; 
-      // Quitamos etiquetas HTML de la descripción
+    const product = shopifyResponse.data.product;
+    let productText = 'No se encontró información del producto.';
+
+    if (product) {
       const cleanDescription = product.body_html.replace(/<\/?[^>]+(>|$)/g, '');
       productText = `
         Producto: ${product.title}
         Descripción: ${cleanDescription}
-        Precio (ej. variante 0): ${product.variants[0].price}
+        Precio: ${product.variants[0].price}
         Link de compra: https://${SHOPIFY_STORE_URL}/products/${product.handle}
       `;
     }
 
-    // 2. Construir prompt para OpenAI (GPT)
+    // Construcción del prompt basado en el guion de ventas
     const prompt = `
-      Eres un chatbot de ventas para una tienda en Shopify.
-      Responde en un tono amable y profesional, y trata de guiar al usuario hacia la compra.
+      Juan es un barista profesional y asesor en café. Su misión es vender la Coffee Maker.
+      Sigue un guion de ventas estructurado en 5 interacciones y responde en menos de 25 palabras.
+      
       Información del producto disponible:
       ${productText}
 
-      El usuario pregunta: "${incomingMsg}"
+      Pregunta del usuario: "${incomingMsg}"
     `;
 
-    // 3. Llamar a la API de OpenAI
+    // Llamar a OpenAI para generar respuesta
     const openaiResponse = await openai.createCompletion({
       model: 'text-davinci-003',
       prompt: prompt,
@@ -78,25 +72,20 @@ app.post('/whatsapp', async (req, res) => {
     });
 
     const botAnswer = openaiResponse.data.choices[0].text.trim();
-    console.log('Respuesta generada por GPT:', botAnswer);
+    console.log('Respuesta generada:', botAnswer);
 
-    // 4. Enviar la respuesta de vuelta al usuario vía Twilio
-    //    Creando un TwiML (Twilio Markup Language)
+    // Enviar respuesta por Twilio
     const twiml = new MessagingResponse();
     twiml.message(botAnswer);
-
-    // Twilio exige que la respuesta sea en formato XML
     res.type('text/xml');
     res.send(twiml.toString());
-
   } catch (error) {
-    console.error('Error en /whatsapp:', error?.response?.data || error.message);
+    console.error('Error:', error?.response?.data || error.message);
     res.status(500).send('Error interno del servidor');
   }
 });
 
-// Iniciar el servidor
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Servidor escuchando en http://localhost:${PORT}`);
+  console.log(`Servidor en ejecución en http://localhost:${PORT}`);
 });
