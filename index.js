@@ -1,18 +1,17 @@
 require('dotenv').config();
 const express = require('express');
 const axios = require('axios');
-const { Configuration, OpenAIApi } = require('openai');
+const OpenAI = require('openai');
 const twilio = require('twilio');
 
 const app = express();
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 
-// Configurar OpenAI
-const configuration = new Configuration({
+// Configurar OpenAI correctamente
+const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
-const openai = new OpenAIApi(configuration);
 
 // Configurar Twilio
 const { TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN } = process.env;
@@ -45,33 +44,74 @@ app.post('/whatsapp', async (req, res) => {
     if (product) {
       const cleanDescription = product.body_html.replace(/<\/?[^>]+(>|$)/g, '');
       productText = `
-        Producto: ${product.title}
-        Descripción: ${cleanDescription}
-        Precio: ${product.variants[0].price}
-        Link de compra: https://${SHOPIFY_STORE_URL}/products/${product.handle}
+📦 Producto: ${product.title}
+✅ Descripción: ${cleanDescription}
+💰 Precio: ${product.variants[0].price}
+🛒 Link de compra: https://${SHOPIFY_STORE_URL}/products/${product.handle}
       `;
     }
 
-    // Construcción del prompt basado en el guion de ventas
+    // Prompt corregido con formato adecuado
     const prompt = `
-      Juan es un barista profesional y asesor en café. Su misión es vender la Coffee Maker.
-      Sigue un guion de ventas estructurado en 5 interacciones y responde en menos de 25 palabras.
-      
-      Información del producto disponible:
-      ${productText}
+Juan es un barista profesional y asesor en café, con un conocimiento profundo sobre café y máquinas para su preparación. 
+Su misión es vender la Coffee Maker a clientes interesados en preparar café de calidad en casa.
 
-      Pregunta del usuario: "${incomingMsg}"
-    `;
+📌 **Guion de ventas estructurado en 5 interacciones:**
+
+1️⃣ **Saludo e identificación de la necesidad**:
+   - Si el cliente menciona café, cafetera, espresso, cappuccino o similar, Juan lo saluda cordialmente, se presenta y confirma si su ubicación aplica para **envío gratis y pago contra entrega**.
+   - Luego pregunta: "¿Deseas conocer nuestros precios?".
+
+2️⃣ **Presentación del producto y precios**:
+   - Si el cliente muestra interés, Juan le presenta la **Coffee Maker**, destacando sus ventajas:
+     - ☕ Preparación de espresso y cappuccino en casa con calidad profesional.
+     - 🚚 Envío gratis con pago contra entrega.
+     - 🔥 Alta presión de 15 bares para un café intenso y aromático.
+     - 🛠 Fácil de usar y limpiar.
+   - Estructura de precios en estilo lista:
+     📦 Producto: Coffee Maker
+     ✅ Envío Gratis
+     💰 Precio: ${product.variants[0].price}
+     🛒 Pagas al recibir.
+   - Luego pregunta: "¿Para qué uso deseas la Coffee Maker?".
+
+3️⃣ **Conexión con la necesidad del cliente**:
+   - Basado en la respuesta del cliente, Juan explica cómo la Coffee Maker le facilitará la vida.
+   - Destaca beneficios clave dependiendo del uso mencionado.
+   - Luego pregunta: "¿Deseas que te enviemos el producto y lo pagas al recibir?".
+
+4️⃣ **Captura de datos para el pedido**:
+   - Si el cliente confirma la compra, Juan le solicita los siguientes datos en formato claro:
+     ✍️ Para confirmar tu pedido, indícame:
+     1️⃣ Nombre
+     2️⃣ Apellido
+     3️⃣ Teléfono
+     4️⃣ Departamento
+     5️⃣ Ciudad
+     6️⃣ Dirección
+     7️⃣ Color deseado
+
+5️⃣ **Verificación final del pedido**:
+   - Juan devuelve los datos en el mismo formato y pregunta si están correctos.
+   - Si el cliente confirma, finaliza con: "¡Todo confirmado! 🎉 Tu Coffee Maker llegará pronto.".
+
+✅ **Manejo de Objeciones**:
+- 💰 Si el cliente menciona el precio: Explica que es una inversión en café de calidad, evitando gastos en cafeterías.
+- 🏬 Si pregunta por tienda física: Indica que el centro de distribución está en Cali y no hay mostrador, pero hay envíos a toda Colombia.
+- 🔎 Si pregunta por la marca: Responde que la marca es **RAF**, con **3 meses de garantía**.
+
+👥 **Mensaje del cliente**: "${incomingMsg}"
+`;
 
     // Llamar a OpenAI para generar respuesta
-    const openaiResponse = await openai.createCompletion({
-      model: 'text-davinci-003',
-      prompt: prompt,
-      max_tokens: 150,
+    const openaiResponse = await openai.chat.completions.create({
+      model: 'gpt-4-turbo',
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: 200,
       temperature: 0.7,
     });
 
-    const botAnswer = openaiResponse.data.choices[0].text.trim();
+    const botAnswer = openaiResponse.choices[0].message.content.trim();
     console.log('Respuesta generada:', botAnswer);
 
     // Enviar respuesta por Twilio
