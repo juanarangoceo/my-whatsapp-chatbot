@@ -1,8 +1,8 @@
-require('dotenv').config();
-const express = require('express');
-const axios = require('axios');
-const OpenAI = require('openai');
-const twilio = require('twilio');
+import 'dotenv/config';
+import express from 'express';
+import axios from 'axios';
+import OpenAI from 'openai';
+import twilio from 'twilio';
 
 const app = express();
 app.use(express.urlencoded({ extended: false }));
@@ -16,7 +16,7 @@ const openai = new OpenAI({
 // Configurar Twilio
 const { TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN } = process.env;
 const client = twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
-const { MessagingResponse } = twilio.twiml;
+const MessagingResponse = twilio.twiml.MessagingResponse;
 
 // Configurar Shopify con las correcciones
 const SHOPIFY_STORE_URL = process.env.SHOPIFY_STORE_URL;
