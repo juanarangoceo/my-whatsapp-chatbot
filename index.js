@@ -4,6 +4,7 @@ import axios from 'axios';
 import OpenAI from 'openai';
 import twilio from 'twilio';
 import { getPrompt } from './prompt.js';
+import { faq } from './faq.js';
 
 const app = express();
 app.use(express.urlencoded({ extended: false }));
@@ -22,6 +23,16 @@ const MessagingResponse = twilio.twiml.MessagingResponse;
 // Estado para seguimiento de la interacción
 const userStates = {};
 
+// Función para verificar si la pregunta está en las preguntas frecuentes
+function checkFAQ(incomingMsg) {
+  for (const key in faq) {
+    if (incomingMsg.includes(key.toLowerCase())) {
+      return faq[key];
+    }
+  }
+  return null; // Si no está en las FAQ, seguimos con OpenAI
+}
+
 // Endpoint de WhatsApp
 app.post('/whatsapp', async (req, res) => {
   try {
@@ -38,23 +49,23 @@ app.post('/whatsapp', async (req, res) => {
       userStates[userPhone].city = incomingMsg;
       userStates[userPhone].stage = 'interaction_1';
       botAnswer = `Perfecto, confirmo que en ${incomingMsg} el envío es gratis y con pago contra entrega. 🚚 ¿Deseas conocer nuestros precios?`;
-    } else if (userStates[userPhone].stage === 'interaction_1' && (incomingMsg === "sí" || incomingMsg === "si" || incomingMsg.includes("precio"))) {
+    } else if (userStates[userPhone].stage === 'interaction_1' && (incomingMsg.includes("sí") || incomingMsg.includes("si") || incomingMsg.includes("precio"))) {
       userStates[userPhone].stage = 'interaction_2';
       botAnswer = "💰 El precio de nuestra *Máquina para Café Automática* es de *$420,000* con *envío GRATIS* y pago contra entrega. 🚚\n\n ¿Qué uso piensas darle a la máquina?";
-    } else if (userStates[userPhone].stage === 'interaction_2') {
+    } else if (userStates[userPhone].stage === 'interaction_2' || incomingMsg.includes("uso") || incomingMsg.includes("necesito")) {
       userStates[userPhone].stage = 'interaction_3';
       botAnswer = `¡Excelente! Esta máquina es ideal para ${incomingMsg}. Su sistema de 15 bares de presión te permitirá preparar espressos y capuchinos de calidad profesional. ☕\n\n¿Deseas que te enviemos el producto y lo pagas al recibir?`;
-    } else if (userStates[userPhone].stage === 'interaction_3' && (incomingMsg === "sí" || incomingMsg === "si" || incomingMsg.includes("quiero"))) {
+    } else if (userStates[userPhone].stage === 'interaction_3' && (incomingMsg.includes("sí") || incomingMsg.includes("quiero"))) {
       userStates[userPhone].stage = 'interaction_4';
       botAnswer = "¡Genial! Para procesar tu pedido, necesitamos estos datos:\n\n1. Nombre 😊\n2. Apellido 😊\n3. Teléfono 📞\n4. Departamento 🌄\n5. Ciudad 🏙️\n6. Dirección 🏡\n7. Color 🎨";
     } else if (userStates[userPhone].stage === 'interaction_4') {
       userStates[userPhone].stage = 'confirmation';
       botAnswer = `Confirma tus datos:\n${incomingMsg}\n\n¿Son correctos? (Responde sí para confirmar)`;
-    } else if (userStates[userPhone].stage === 'confirmation' && (incomingMsg === "sí" || incomingMsg === "si")) {
+    } else if (userStates[userPhone].stage === 'confirmation' && (incomingMsg.includes("sí") || incomingMsg.includes("correcto"))) {
       botAnswer = "¡Todo confirmado! 🎉 Tu pedido ha sido registrado. Te notificaremos cuando esté en camino. 🚚";
       delete userStates[userPhone];
     } else {
-      botAnswer = await getOpenAIResponse(incomingMsg);
+      botAnswer = checkFAQ(incomingMsg) || await getOpenAIResponse(getPrompt(incomingMsg, userStates[userPhone]?.stage || 'default'));
     }
 
     console.log('🤖 Respuesta generada:', botAnswer);
@@ -74,10 +85,19 @@ async function getOpenAIResponse(prompt) {
     const openaiResponse = await openai.chat.completions.create({
       model: 'gpt-4-turbo',
       messages: [{ role: "user", content: prompt }],
-      max_tokens: 500,
+      max_tokens: 100,
       temperature: 0.5,
     });
-    return openaiResponse.choices?.[0]?.message?.content?.trim() || "Lo siento, no entendí tu pregunta.";
+
+    let response = openaiResponse.choices?.[0]?.message?.content?.trim() || "Lo siento, no entendí tu pregunta.";
+
+    if (response.length > 200) {
+      response = response.split('. ')[0] + ". ¿Te gustaría saber más detalles o realizar tu pedido?";
+    } else {
+      response += " ¿Te gustaría continuar con la compra? 🚀";
+    }
+
+    return response;
   } catch (error) {
     console.error("❌ Error en OpenAI:", error.response?.data || error.message);
     return "Hubo un error al procesar tu solicitud. Intenta nuevamente más tarde.";
