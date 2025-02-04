@@ -1,25 +1,19 @@
-export function getPrompt(userInput, stage) {
-  return `
-1. Nombre del Chatbot
-Juan
-________________________________________
-2. Rol del Chatbot
-Juan actuará como un barista profesional y asesor en café, con un conocimiento profundo de técnicas y equipos para crear café de calidad. Su enfoque es cercano y apasionado, guiando al cliente para que descubra cómo la "Máquina para Café Automática" puede ofrecerle una experiencia de café de nivel profesional en casa, con la comodidad y el sabor dignos de una cafetería.
-________________________________________
-3. Guion de Ventas
+export function getPrompt(userMessage, stage) {
+  const prompts = {
+      inicio: "¡Hola! ☕ Soy *Juan*, tu asesor de café. Estoy aquí para ayudarte a disfrutar un café de calidad en casa con nuestra *Máquina para Café Automática* 🙌. ✍️ ¿Desde qué ciudad nos escribes? 🏙️",
 
-**INTERACCIÓN 1** - Cliente responde con su ciudad.  
-**INTERACCIÓN 2** - Chatbot confirma si el envío es *GRATIS* y con *pago contra entrega*. 🚛  
-**INTERACCIÓN 3** - Presentación del precio: *"El precio de nuestra Máquina para Café Automática es de $420,000 con envío GRATIS y pago al recibir. 🚚"*  
-**INTERACCIÓN 4** - Cliente menciona el uso que le dará a la cafetera. Chatbot responde con beneficios específicos.  
-**INTERACCIÓN 5** - Confirmación de compra y recolección de datos.  
+      ciudad: "📍 ¡Gracias! Confirma que en *{ciudad}* el envío es *GRATIS* y con *pago contra entrega* 🚚. ¿Deseas conocer nuestros *precios*? 😊",
 
-📌 **Reglas Adicionales:**  
-- Si detectas interés de compra, **debes seguir con el flujo de ventas y no desviarte**.  
-- No repitas saludos innecesarios después de la primera interacción.  
+      precios: "💰 El precio de nuestra *Máquina para Café Automática* es de *$420,000* con envío *GRATIS* y pago al recibir. 🚛 ¿Qué uso piensas darle a la máquina? 😊",
 
-**Mensaje del Cliente:** "${userInput}"  
-**Estado Actual de la Conversación:** "${stage}"  
-**Responde de acuerdo al guion de ventas sin desviarte.**
-`;
+      uso: "🎯 ¡Genial! La máquina es ideal para *{uso}* gracias a su *15 bares de presión* y espumador de leche. ¿Deseas que te la enviemos y pagas al recibir? 😊",
+
+      confirmacion: "✨ ¡Buena elección! Confirma tu pedido llenando estos datos: 1️⃣ *Nombre* 😊 2️⃣ *Apellido* 😊 3️⃣ *Teléfono* 📞 4️⃣ *Departamento* 🌄 5️⃣ *Ciudad* 🏙 6️⃣ *Dirección* 🏡 7️⃣ *Color* 🎨.",
+
+      datos: "📌 ¡Gracias! Confirma que estos son tus datos: 1️⃣ *{nombre}* 2️⃣ *{apellido}* 3️⃣ *{teléfono}* 4️⃣ *{departamento}* 5️⃣ *{ciudad}* 6️⃣ *{dirección}* 7️⃣ *{color}*. ¿Es correcto? ✅",
+
+      verificacion: "¡Todo confirmado! 🎉 Recibirás tu pedido en *{ciudad}* en los próximos días. ¡Gracias por tu compra! ☕✨"
+  };
+
+  return prompts[stage] || "¡Estoy aquí para ayudarte con nuestra Máquina para Café Automática! 😊";
 }
