@@ -31,38 +31,33 @@ app.post('/whatsapp', async (req, res) => {
 
     let botAnswer = "";
 
-    // Si es la primera interacción, saluda y pregunta la ciudad
     if (!userStates[userPhone]) {
       userStates[userPhone] = { stage: 'ask_city' };
       botAnswer = "¡Hola! ☕ Soy Juan, tu asesor de café profesional. Estoy aquí para ayudarte a descubrir cómo puedes disfrutar en casa de un café digno de cafetería, con nuestra Máquina para Café Automática. 🙌\n\n✍️ Cuéntanos, *¿Desde qué ciudad nos escribes?* 🏙️";
     } else if (userStates[userPhone].stage === 'ask_city') {
-      // Guardar la ciudad y continuar con la primera interacción usando OpenAI
       userStates[userPhone].city = incomingMsg;
       userStates[userPhone].stage = 'interaction_1';
-      const prompt = getPrompt("INTERACCIÓN 1: " + incomingMsg);
-      botAnswer = await getOpenAIResponse(prompt);
+      botAnswer = `Perfecto, confirmo que en ${incomingMsg} el envío es gratis y con pago contra entrega. 🚚 ¿Deseas conocer nuestros precios?`;
+    } else if (userStates[userPhone].stage === 'interaction_1' && (incomingMsg === "sí" || incomingMsg === "si" || incomingMsg.includes("precio"))) {
+      userStates[userPhone].stage = 'interaction_2';
+      botAnswer = "💰 El precio de nuestra *Máquina para Café Automática* es de *$420,000* con *envío GRATIS* y pago contra entrega. 🚚\n\n ¿Qué uso piensas darle a la máquina?";
+    } else if (userStates[userPhone].stage === 'interaction_2') {
+      userStates[userPhone].stage = 'interaction_3';
+      botAnswer = `¡Excelente! Esta máquina es ideal para ${incomingMsg}. Su sistema de 15 bares de presión te permitirá preparar espressos y capuchinos de calidad profesional. ☕\n\n¿Deseas que te enviemos el producto y lo pagas al recibir?`;
+    } else if (userStates[userPhone].stage === 'interaction_3' && (incomingMsg === "sí" || incomingMsg === "si" || incomingMsg.includes("quiero"))) {
+      userStates[userPhone].stage = 'interaction_4';
+      botAnswer = "¡Genial! Para procesar tu pedido, necesitamos estos datos:\n\n1. Nombre 😊\n2. Apellido 😊\n3. Teléfono 📞\n4. Departamento 🌄\n5. Ciudad 🏙️\n6. Dirección 🏡\n7. Color 🎨";
+    } else if (userStates[userPhone].stage === 'interaction_4') {
+      userStates[userPhone].stage = 'confirmation';
+      botAnswer = `Confirma tus datos:\n${incomingMsg}\n\n¿Son correctos? (Responde sí para confirmar)`;
+    } else if (userStates[userPhone].stage === 'confirmation' && (incomingMsg === "sí" || incomingMsg === "si")) {
+      botAnswer = "¡Todo confirmado! 🎉 Tu pedido ha sido registrado. Te notificaremos cuando esté en camino. 🚚";
+      delete userStates[userPhone];
     } else {
-      // Manejo de respuestas afirmativas
-      if (incomingMsg === "sí" || incomingMsg === "si" || incomingMsg === "claro" || incomingMsg === "ok") {
-        if (userStates[userPhone].stage === 'interaction_1') {
-          userStates[userPhone].stage = 'interaction_2';
-          botAnswer = getPrompt("INTERACCIÓN 2: Aquí están los precios detallados de nuestra Máquina para Café Automática:\n\n\u2022 💰 *Precio: $420,000*\n\u2022 🚚 *Envío GRATIS* con pago contra entrega\n\n¿Te gustaría saber más sobre las características o cómo realizar el pedido?");
-        } else if (userStates[userPhone].stage === 'interaction_2') {
-          userStates[userPhone].stage = 'interaction_3';
-          botAnswer = getPrompt("INTERACCIÓN 3: Confirmación de uso de la cafetera");
-        } else {
-          botAnswer = "Perfecto, continuemos con el proceso de compra.";
-        }
-      } else {
-        // Obtener el prompt desde el archivo externo y continuar con OpenAI
-        const prompt = getPrompt(incomingMsg);
-        botAnswer = await getOpenAIResponse(prompt);
-      }
+      botAnswer = await getOpenAIResponse(incomingMsg);
     }
 
     console.log('🤖 Respuesta generada:', botAnswer);
-
-    // Enviar respuesta por Twilio
     const twiml = new MessagingResponse();
     twiml.message(botAnswer);
     res.type('text/xml');
