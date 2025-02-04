@@ -32,6 +32,12 @@ const fichaTecnica = `📌 *Ficha Técnica - ${producto.nombre}*
 • ☕ *Compatibilidad:* ${producto.sistema_preparacion_cafe.compatibilidad}
 • 🔒 *Garantía:* ${producto.garantia_soporte.duracion_garantia}`;
 
+const ofertaMensaje = `☕🔥 ¡Tu café perfecto te espera! Aprovecha el *50% de descuento*, *envío gratis* y *pago contraentrega*. Disfruta espresso, cappuccino y más en casa con calidad de cafetería.
+
+👉 *Compra ahora aquí:* ${producto.link_compra}
+
+📦 *Stock limitado*, asegúrate el tuyo antes de que se agoten. ¡No te lo pierdas! 🚀`;
+
 const preguntasPersuasivas = [
     "☕ ¿Te gustaría disfrutar de un espresso con crema y sabor intenso sin salir de casa?",
     "💰 ¿Gastaste mucho dinero en café este mes? Con esta cafetera ahorras a largo plazo.",
@@ -45,7 +51,7 @@ const preguntasPersuasivas = [
 
 app.post('/whatsapp', async (req, res) => {
     try {
-        const incomingMsg = req.body.Body.trim();
+        const incomingMsg = req.body.Body.trim().toLowerCase();
         const userPhone = req.body.From;
         console.log('📩 Mensaje entrante:', incomingMsg);
 
@@ -53,15 +59,21 @@ app.post('/whatsapp', async (req, res) => {
             userStates[userPhone] = { stage: 'inicio', data: {} };
         }
 
-        let responseMessage = await getChatbotResponse(userStates[userPhone], incomingMsg);
-        console.log('🤖 Respuesta generada:', responseMessage);
+        let responseMessage;
+
+        // Detectar respuestas afirmativas y enviar enlace de compra
+        if (["sí", "si", "quiero", "me interesa", "comprar", "dónde comprar", "donde comprar"].some(word => incomingMsg.includes(word))) {
+            responseMessage = ofertaMensaje;
+        } else {
+            responseMessage = await getChatbotResponse(userStates[userPhone], incomingMsg);
+
+            // Agregar una pregunta persuasiva al final
+            const preguntaAdicional = preguntasPersuasivas[Math.floor(Math.random() * preguntasPersuasivas.length)];
+            responseMessage += `\n\n${preguntaAdicional}`;
+        }
 
         // Simular un retardo de 3 segundos antes de responder
         await new Promise(resolve => setTimeout(resolve, 3000));
-
-        // Agregar una pregunta persuasiva al final
-        const preguntaAdicional = preguntasPersuasivas[Math.floor(Math.random() * preguntasPersuasivas.length)];
-        responseMessage += `\n\n${preguntaAdicional}`;
 
         const twiml = new MessagingResponse();
         twiml.message(responseMessage);
@@ -74,18 +86,6 @@ app.post('/whatsapp', async (req, res) => {
 });
 
 async function getChatbotResponse(userState, userMessage) {
-    if (userMessage.toLowerCase().includes("ficha") || userMessage.toLowerCase().includes("características")) {
-        return fichaTecnica;
-    }
-
-    if (userMessage.toLowerCase().includes("otros productos") || userMessage.toLowerCase().includes("tienen más modelos")) {
-        return `📢 Actualmente solo ofrecemos la *${producto.nombre}* ☕, diseñada para brindarte la mejor experiencia en café en casa. ¿Te gustaría saber más?`;
-    }
-
-    if (userMessage.toLowerCase().includes("comprar") || userMessage.toLowerCase().includes("dónde comprar")) {
-        return `🛒 Puedes comprar la *${producto.nombre}* en el siguiente enlace: ${producto.link_compra}`;
-    }
-
     try {
         const openaiResponse = await openai.chat.completions.create({
             model: 'gpt-4-turbo',
