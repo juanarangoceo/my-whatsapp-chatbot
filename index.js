@@ -34,7 +34,7 @@ function checkFAQ(incomingMsg) {
   return null;
 }
 
-// Función para manejar el flujo de la conversación
+// Función para manejar el flujo de conversación y evitar bucles
 function handleConversation(userPhone, incomingMsg) {
   if (!userStates[userPhone]) {
     userStates[userPhone] = { stage: "saludo" };
@@ -58,7 +58,7 @@ function handleConversation(userPhone, incomingMsg) {
         response = "🛒 *Precio de nuestra Máquina para Café Automática:* 💰\n\n- *Precio actual:* $420,000\n- 🚚 *Envío GRATIS*\n- 📦 *Pago contra entrega*\n\n📌 ¿Qué uso deseas darle a la máquina?";
         userStates[userPhone].stage = "preguntar_uso";
       } else {
-        response = "¿Te gustaría saber más sobre la cafetera? 😊";
+        response = "Si necesitas más información, dime qué te gustaría saber. 😊";
       }
       break;
 
@@ -108,11 +108,11 @@ app.post('/whatsapp', async (req, res) => {
 
     let botAnswer = "";
 
-    // Si estamos en el flujo inicial, seguimos con el guion
-    if (!userStates[userPhone] || userStates[userPhone].stage !== "saludo") {
+    // Si el usuario está en flujo de ventas, continuar el flujo
+    if (userStates[userPhone] && userStates[userPhone].stage !== "saludo") {
       botAnswer = handleConversation(userPhone, incomingMsg);
     } else {
-      // Verifica si el mensaje coincide con el FAQ y el usuario ya pasó el saludo
+      // Verifica si el mensaje coincide con el FAQ
       botAnswer = checkFAQ(incomingMsg);
       if (!botAnswer) {
         botAnswer = await getOpenAIResponse(getPrompt(incomingMsg, userStates[userPhone]?.stage || 'default'));
