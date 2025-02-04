@@ -25,7 +25,7 @@ const userStates = {};
 // Endpoint de WhatsApp
 app.post('/whatsapp', async (req, res) => {
   try {
-    const incomingMsg = req.body.Body.trim();
+    const incomingMsg = req.body.Body.trim().toLowerCase();
     const userPhone = req.body.From;
     console.log('📩 Mensaje entrante:', incomingMsg);
 
@@ -39,41 +39,24 @@ app.post('/whatsapp', async (req, res) => {
       // Guardar la ciudad y continuar con la primera interacción usando OpenAI
       userStates[userPhone].city = incomingMsg;
       userStates[userPhone].stage = 'interaction_1';
-
       const prompt = getPrompt("INTERACCIÓN 1: " + incomingMsg);
-      const openaiResponse = await openai.chat.completions.create({
-        model: 'gpt-4-turbo',
-        messages: [{ role: "user", content: prompt }],
-        max_tokens: 500,
-        temperature: 0.5,
-      });
-
-      botAnswer = openaiResponse.choices?.[0]?.message?.content?.trim() || "Hubo un error al procesar tu solicitud. Intenta nuevamente más tarde.";
+      botAnswer = await getOpenAIResponse(prompt);
     } else {
-      // Continuar con el flujo de ventas
-      const prompt = getPrompt(incomingMsg);
-      
-      if (!prompt || prompt.trim() === "") {
-        console.log("🔄 Mensaje fuera del flujo de ventas, pero se responderá redirigiendo a la venta.");
-        prompt = `El cliente ha preguntado: "${incomingMsg}".  
-        Como asistente de ventas, responde brevemente y siempre lleva la conversación hacia la compra de la *Máquina para Café Automática*.  
-        Si el cliente muestra interés en comprar, sigue con el proceso de venta.  
-        **Nunca desvíes la conversación fuera del guion de ventas.**`;
-      }
-
-      // Generar respuesta con OpenAI
-      try {
-        const openaiResponse = await openai.chat.completions.create({
-          model: 'gpt-4-turbo',
-          messages: [{ role: "user", content: prompt }],
-          max_tokens: 500,
-          temperature: 0.5,
-        });
-
-        botAnswer = openaiResponse.choices?.[0]?.message?.content?.trim() || "Hubo un error al procesar tu solicitud. Intenta nuevamente más tarde.";
-      } catch (error) {
-        console.error("❌ Error en OpenAI:", error.response?.data || error.message);
-        botAnswer = "Hubo un error al procesar tu solicitud. Intenta nuevamente más tarde.";
+      // Manejo de respuestas afirmativas
+      if (incomingMsg === "sí" || incomingMsg === "si" || incomingMsg === "claro" || incomingMsg === "ok") {
+        if (userStates[userPhone].stage === 'interaction_1') {
+          userStates[userPhone].stage = 'interaction_2';
+          botAnswer = getPrompt("INTERACCIÓN 2: Aquí están los precios detallados de nuestra Máquina para Café Automática:\n\n\u2022 💰 *Precio: $420,000*\n\u2022 🚚 *Envío GRATIS* con pago contra entrega\n\n¿Te gustaría saber más sobre las características o cómo realizar el pedido?");
+        } else if (userStates[userPhone].stage === 'interaction_2') {
+          userStates[userPhone].stage = 'interaction_3';
+          botAnswer = getPrompt("INTERACCIÓN 3: Confirmación de uso de la cafetera");
+        } else {
+          botAnswer = "Perfecto, continuemos con el proceso de compra.";
+        }
+      } else {
+        // Obtener el prompt desde el archivo externo y continuar con OpenAI
+        const prompt = getPrompt(incomingMsg);
+        botAnswer = await getOpenAIResponse(prompt);
       }
     }
 
@@ -90,6 +73,21 @@ app.post('/whatsapp', async (req, res) => {
     res.status(500).send('Error interno del servidor');
   }
 });
+
+async function getOpenAIResponse(prompt) {
+  try {
+    const openaiResponse = await openai.chat.completions.create({
+      model: 'gpt-4-turbo',
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: 500,
+      temperature: 0.5,
+    });
+    return openaiResponse.choices?.[0]?.message?.content?.trim() || "Lo siento, no entendí tu pregunta.";
+  } catch (error) {
+    console.error("❌ Error en OpenAI:", error.response?.data || error.message);
+    return "Hubo un error al procesar tu solicitud. Intenta nuevamente más tarde.";
+  }
+}
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
