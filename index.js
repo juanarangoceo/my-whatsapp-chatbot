@@ -16,9 +16,11 @@ const MessagingResponse = twilio.twiml.MessagingResponse;
 
 const userStates = {};
 
+const fichaTecnica = `📌 *Ficha Técnica de la Máquina para Café Automática*\n\n• ⚡ *Potencia:* 850W\n• 🔌 *Voltaje:* 120V\n• 💨 *Presión de la Bomba:* 15 bar\n• 💧 *Capacidad del Tanque:* 1.6 litros, extraíble y transparente\n• 📲 *Funciones Inteligentes:* Pantalla táctil con selección de espresso, cappuccino, agua caliente y vapor\n• 🏗️ *Material del Filtro:* Aleación de aluminio y acero inoxidable\n• 🛠️ *Componentes Adicionales:* Boquilla de espuma desmontable, bandeja de goteo extraíble, válvula de seguridad automática\n• ☕ *Aplicaciones:* Ideal para quienes buscan calidad y comodidad en cada taza, sin necesidad de salir de casa.`;
+
 app.post('/whatsapp', async (req, res) => {
     try {
-        const incomingMsg = req.body.Body.trim().toLowerCase();
+        const incomingMsg = req.body.Body.trim();
         const userPhone = req.body.From;
         console.log('📩 Mensaje entrante:', incomingMsg);
 
@@ -26,7 +28,7 @@ app.post('/whatsapp', async (req, res) => {
             userStates[userPhone] = { stage: 'inicio', data: {} };
         }
 
-        let responseMessage = getChatbotResponse(userStates[userPhone], incomingMsg);
+        let responseMessage = await getChatbotResponse(userStates[userPhone], incomingMsg);
         console.log('🤖 Respuesta generada:', responseMessage);
 
         const twiml = new MessagingResponse();
@@ -39,79 +41,24 @@ app.post('/whatsapp', async (req, res) => {
     }
 });
 
-function getChatbotResponse(userState, userMessage) {
-    const stage = userState.stage;
-    switch (stage) {
-        case 'inicio':
-            userState.stage = 'ciudad';
-            return "¡Hola! Soy Juan, tu asesor de café ☕. ¿En qué ciudad te encuentras?";
-        case 'ciudad':
-            userState.data.ciudad = userMessage;
-            userState.stage = 'precios';
-            return "🚛 ¡Envío confirmado! Ofrecemos pago contra entrega. ¿Deseas conocer nuestros precios?";
-        case 'precios':
-            userState.stage = 'uso';
-            return "✅ *Máquina para Café Automática*\n\n🔥 *Ahora: $420,000*\n🚚 *Envío GRATIS*\n📦 *Pagas al recibir*\n\n¿Qué uso le darías a la cafetera? ☕";
-        case 'uso':
-            userState.data.uso = userMessage;
-            userState.stage = 'confirmacion';
-            return `🎯 Excelente elección. Esta cafetera es perfecta para ${userMessage}. ¿Te la enviamos con pago contra entrega?`;
-        case 'confirmacion':
-            if (userMessage.includes("sí") || userMessage.includes("claro")) {
-                userState.stage = 'datos';
-                return "📝 Para proceder con tu pedido, por favor envíame tus datos:\n1. Nombre 😊\n2. Apellido 😊\n3. Teléfono 📞\n4. Departamento 🌄\n5. Ciudad 🏙\n6. Dirección 🏡\n7. Color 🎨";
-            } else {
-                return "No hay problema, si necesitas más información dime cómo puedo ayudarte.";
-            }
-        case 'datos':
-            userState.data.datos = userMessage;
-            userState.stage = 'verificacion';
-            return `🔎 Verifiquemos tus datos:\n${userMessage}\n\n¿Están correctos? (Sí/No)`;
-        case 'verificacion':
-            if (userMessage.includes("sí")) {
-                createShopifyOrder(userState.data);
-                userState.stage = 'finalizado';
-                return "🎉 ¡Todo confirmado! Tu pedido está en camino. Te notificaremos pronto. ¡Gracias por confiar en nosotros!";
-            } else {
-                userState.stage = 'datos';
-                return "Por favor, envíanos nuevamente los datos correctamente.";
-            }
-        default:
-            return "Lo siento, no entendí tu respuesta. ¿Puedes repetirlo?";
+async function getChatbotResponse(userState, userMessage) {
+    if (userMessage.toLowerCase().includes("ficha") || userMessage.toLowerCase().includes("características")) {
+        return fichaTecnica;
     }
-}
-
-async function createShopifyOrder(orderData) {
-    const shopifyUrl = `${SHOPIFY_STORE_URL}/admin/api/2023-01/orders.json`;
-    const auth = {
-        username: SHOPIFY_API_KEY,
-        password: SHOPIFY_PASSWORD
-    };
-    
-    const orderPayload = {
-        order: {
-            line_items: [{
-                variant_id: "123456789", 
-                quantity: 1
-            }],
-            customer: {
-                first_name: orderData.datos.split('\n')[0],
-                last_name: orderData.datos.split('\n')[1],
-                email: "cliente@email.com"
-            },
-            shipping_address: {
-                address1: orderData.datos.split('\n')[5],
-                city: orderData.datos.split('\n')[4],
-                country: "Colombia"
-            }
-        }
-    };
     
     try {
-        const response = await axios.post(shopifyUrl, orderPayload, { auth });
-        console.log("📦 Pedido creado en Shopify:", response.data);
+        const openaiResponse = await openai.chat.completions.create({
+            model: 'gpt-4-turbo',
+            messages: [{ role: "system", content: "Eres un experto en café y ventas. Siempre resalta las ventajas de la cafetera Espresso Pro Coffee Maker en cada respuesta." },
+                       { role: "user", content: userMessage }],
+            max_tokens: 150,
+            temperature: 0.7,
+        });
+
+        return openaiResponse.choices?.[0]?.message?.content?.trim() || "Lo siento, no entendí tu pregunta. Pero te cuento que nuestra cafetera Espresso Pro Coffee Maker tiene muchas ventajas. ¿Quieres saber más?";
     } catch (error) {
-        console.error("❌ Error al crear pedido en Shopify:", error.response?.data || error.message);
+        console.error("❌ Error en OpenAI:", error.message);
+        return "Hubo un error al procesar tu solicitud. Pero no te preocupes, nuestra cafetera Espresso Pro Coffee Maker es increíble. ¿Quieres conocer sus beneficios?";
     }
 }
 
