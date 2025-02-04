@@ -28,7 +28,7 @@ const userStates = {};
 function checkFAQ(incomingMsg) {
   const faqKeys = Object.keys(faq);
   const matches = stringSimilarity.findBestMatch(incomingMsg, faqKeys);
-  if (matches.bestMatch.rating > 0.7) { // Ajuste de umbral de similitud
+  if (matches.bestMatch.rating > 0.7) {
     return faq[matches.bestMatch.target];
   }
   return null;
@@ -49,7 +49,7 @@ function handleConversation(userPhone, incomingMsg) {
       break;
 
     case "preguntar_ciudad":
-      response = `📍 ¡Gracias! Confirma que en *${incomingMsg}* el envío es *gratis* y con *pago contra entrega*. 🚚\n\n¿Deseas conocer nuestros precios?`;
+      response = `📍 ¡Gracias! Confirmo que en *${incomingMsg}* el envío es *gratis* y con *pago contra entrega*. 🚚\n\n¿Deseas conocer nuestros precios?`;
       userStates[userPhone].stage = "preguntar_precio";
       break;
 
@@ -108,10 +108,11 @@ app.post('/whatsapp', async (req, res) => {
 
     let botAnswer = "";
 
-    if (userStates[userPhone]?.stage === "saludo" || userStates[userPhone]?.stage === "preguntar_ciudad") {
+    // Si estamos en el flujo inicial, seguimos con el guion
+    if (!userStates[userPhone] || userStates[userPhone].stage !== "saludo") {
       botAnswer = handleConversation(userPhone, incomingMsg);
     } else {
-      // Verifica si el mensaje coincide con el FAQ
+      // Verifica si el mensaje coincide con el FAQ y el usuario ya pasó el saludo
       botAnswer = checkFAQ(incomingMsg);
       if (!botAnswer) {
         botAnswer = await getOpenAIResponse(getPrompt(incomingMsg, userStates[userPhone]?.stage || 'default'));
