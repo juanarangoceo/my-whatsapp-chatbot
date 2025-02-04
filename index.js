@@ -5,6 +5,7 @@ import OpenAI from 'openai';
 import twilio from 'twilio';
 import { getPrompt } from './prompt.js';
 import { faq } from './faq.js';
+import stringSimilarity from 'string-similarity';
 
 const app = express();
 app.use(express.urlencoded({ extended: false }));
@@ -23,14 +24,14 @@ const MessagingResponse = twilio.twiml.MessagingResponse;
 // Estado para seguimiento de la interacción
 const userStates = {};
 
-// Función para verificar si la pregunta está en las preguntas frecuentes
+// Función para verificar si la pregunta es similar a una en las FAQ
 function checkFAQ(incomingMsg) {
-  for (const key in faq) {
-    if (incomingMsg.includes(key.toLowerCase()) || key.toLowerCase().includes(incomingMsg)) {
-      return faq[key];
-    }
+  const faqKeys = Object.keys(faq);
+  const matches = stringSimilarity.findBestMatch(incomingMsg, faqKeys);
+  if (matches.bestMatch.rating > 0.7) { // Ajuste de umbral de similitud
+    return faq[matches.bestMatch.target];
   }
-  return null; // Si no está en las FAQ, seguimos con OpenAI
+  return null;
 }
 
 // Endpoint de WhatsApp
@@ -67,15 +68,7 @@ async function getOpenAIResponse(prompt) {
       temperature: 0.5,
     });
 
-    let response = openaiResponse.choices?.[0]?.message?.content?.trim() || "Lo siento, no entendí tu pregunta.";
-
-    if (response.length > 200) {
-      response = response.split('. ')[0] + ". ¿Te gustaría saber más detalles o realizar tu pedido?";
-    } else {
-      response += " ¿Te gustaría continuar con la compra? 🚀";
-    }
-
-    return response;
+    return openaiResponse.choices?.[0]?.message?.content?.trim() || "Lo siento, no entendí tu pregunta.";
   } catch (error) {
     console.error("❌ Error en OpenAI:", error.response?.data || error.message);
     return "Hubo un error al procesar tu solicitud. Intenta nuevamente más tarde.";
