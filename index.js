@@ -32,6 +32,17 @@ const fichaTecnica = `📌 *Ficha Técnica - ${producto.nombre}*
 • ☕ *Compatibilidad:* ${producto.sistema_preparacion_cafe.compatibilidad}
 • 🔒 *Garantía:* ${producto.garantia_soporte.duracion_garantia}`;
 
+const preguntasPersuasivas = [
+    "☕ ¿Te gustaría disfrutar de un espresso con crema y sabor intenso sin salir de casa?",
+    "💰 ¿Gastaste mucho dinero en café este mes? Con esta cafetera ahorras a largo plazo.",
+    "☕ ¿El café de tu cafetera de goteo te sabe aguado? ¿Buscas más cuerpo y aroma?",
+    "🔥 ¿Te gustaría empezar tu día con un cappuccino espumoso sin depender de una cafetería?",
+    "🎛️ ¿Te gustaría controlar tu café con una pantalla táctil y funciones automáticas?",
+    "💡 ¿Sabías que esta cafetera tiene el mismo sistema de presión que las cafeteras profesionales?",
+    "🛒 ¿Te gustaría recibirla en la puerta de tu casa con envío gratis?",
+    "⚡ Solo quedan pocas unidades en stock. ¿Quieres asegurar la tuya antes que se agoten?"
+];
+
 app.post('/whatsapp', async (req, res) => {
     try {
         const incomingMsg = req.body.Body.trim();
@@ -44,6 +55,13 @@ app.post('/whatsapp', async (req, res) => {
 
         let responseMessage = await getChatbotResponse(userStates[userPhone], incomingMsg);
         console.log('🤖 Respuesta generada:', responseMessage);
+
+        // Simular un retardo de 3 segundos antes de responder
+        await new Promise(resolve => setTimeout(resolve, 3000));
+
+        // Agregar una pregunta persuasiva al final
+        const preguntaAdicional = preguntasPersuasivas[Math.floor(Math.random() * preguntasPersuasivas.length)];
+        responseMessage += `\n\n${preguntaAdicional}`;
 
         const twiml = new MessagingResponse();
         twiml.message(responseMessage);
