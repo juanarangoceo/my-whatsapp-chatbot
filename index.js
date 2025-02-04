@@ -25,7 +25,7 @@ const userStates = {};
 // Endpoint de WhatsApp
 app.post('/whatsapp', async (req, res) => {
   try {
-    const incomingMsg = req.body.Body.trim().toLowerCase();
+    const incomingMsg = req.body.Body.trim();
     const userPhone = req.body.From;
     console.log('📩 Mensaje entrante:', incomingMsg);
 
@@ -36,25 +36,32 @@ app.post('/whatsapp', async (req, res) => {
       userStates[userPhone] = { stage: 'ask_city' };
       botAnswer = "¡Hola! ☕ Soy Juan, tu asesor de café profesional. Estoy aquí para ayudarte a descubrir cómo puedes disfrutar en casa de un café digno de cafetería, con nuestra Máquina para Café Automática. 🙌\n\n✍️ Cuéntanos, *¿Desde qué ciudad nos escribes?* 🏙️";
     } else if (userStates[userPhone].stage === 'ask_city') {
-      // Guardar la ciudad y continuar con la primera interacción
+      // Guardar la ciudad y continuar con la primera interacción usando OpenAI
       userStates[userPhone].city = incomingMsg;
       userStates[userPhone].stage = 'interaction_1';
-      botAnswer = getPrompt("INTERACCIÓN 1: " + incomingMsg);
-    } else {
-      // Obtener el prompt desde el archivo externo
-      let prompt = getPrompt(incomingMsg);
 
-      // Si la pregunta no está en el guion, responde pero redirige a la venta
+      const prompt = getPrompt("INTERACCIÓN 1: " + incomingMsg);
+      const openaiResponse = await openai.chat.completions.create({
+        model: 'gpt-4-turbo',
+        messages: [{ role: "user", content: prompt }],
+        max_tokens: 500,
+        temperature: 0.5,
+      });
+
+      botAnswer = openaiResponse.choices?.[0]?.message?.content?.trim() || "Hubo un error al procesar tu solicitud. Intenta nuevamente más tarde.";
+    } else {
+      // Continuar con el flujo de ventas
+      const prompt = getPrompt(incomingMsg);
+      
       if (!prompt || prompt.trim() === "") {
-        console.log("🔄 El mensaje no coincide con el flujo de ventas, pero se responderá redirigiendo a la venta.");
+        console.log("🔄 Mensaje fuera del flujo de ventas, pero se responderá redirigiendo a la venta.");
         prompt = `El cliente ha preguntado: "${incomingMsg}".  
         Como asistente de ventas, responde brevemente y siempre lleva la conversación hacia la compra de la *Máquina para Café Automática*.  
-        Si es una pregunta general sobre café, responde relacionándola con la cafetera.  
         Si el cliente muestra interés en comprar, sigue con el proceso de venta.  
         **Nunca desvíes la conversación fuera del guion de ventas.**`;
       }
 
-      // Llamar a OpenAI para generar respuesta
+      // Generar respuesta con OpenAI
       try {
         const openaiResponse = await openai.chat.completions.create({
           model: 'gpt-4-turbo',
@@ -63,7 +70,7 @@ app.post('/whatsapp', async (req, res) => {
           temperature: 0.5,
         });
 
-        botAnswer = openaiResponse.choices?.[0]?.message?.content?.trim() || "Lo siento, no entendí tu pregunta.";
+        botAnswer = openaiResponse.choices?.[0]?.message?.content?.trim() || "Hubo un error al procesar tu solicitud. Intenta nuevamente más tarde.";
       } catch (error) {
         console.error("❌ Error en OpenAI:", error.response?.data || error.message);
         botAnswer = "Hubo un error al procesar tu solicitud. Intenta nuevamente más tarde.";
