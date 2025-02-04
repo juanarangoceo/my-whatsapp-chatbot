@@ -61,8 +61,11 @@ app.post('/whatsapp', async (req, res) => {
 
         let responseMessage;
 
-        // Detectar respuestas afirmativas y enviar enlace de compra
-        if (["sí", "si", "quiero", "me interesa", "comprar", "dónde comprar", "donde comprar"].some(word => incomingMsg.includes(word))) {
+        // Detectar respuestas afirmativas excluyendo frases como "sirve para"
+        const palabrasClave = ["sí", "si", "quiero", "me interesa", "comprar", "dónde comprar", "donde comprar"];
+        const esAfirmativo = palabrasClave.some(word => incomingMsg === word || incomingMsg.startsWith(word + " "));
+        
+        if (esAfirmativo) {
             responseMessage = ofertaMensaje;
         } else {
             responseMessage = await getChatbotResponse(userStates[userPhone], incomingMsg);
@@ -84,23 +87,6 @@ app.post('/whatsapp', async (req, res) => {
         res.status(500).send('Error interno del servidor');
     }
 });
-
-async function getChatbotResponse(userState, userMessage) {
-    try {
-        const openaiResponse = await openai.chat.completions.create({
-            model: 'gpt-4-turbo',
-            messages: [{ role: "system", content: `Eres un experto en ventas. Siempre resalta las ventajas de la *${producto.nombre}* en cada respuesta, usa emojis y mantén las respuestas en menos de 25 palabras.` },
-                       { role: "user", content: userMessage }],
-            max_tokens: 50,
-            temperature: 0.7,
-        });
-
-        return openaiResponse.choices?.[0]?.message?.content?.trim() || `☕ La *${producto.nombre}* hace café delicioso en segundos. ¿Quieres conocer más ventajas?`;
-    } catch (error) {
-        console.error("❌ Error en OpenAI:", error.message);
-        return `⚠️ Hubo un error. Pero la *${producto.nombre}* sigue siendo increíble. ¿Te gustaría saber más?`;
-    }
-}
 
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, '0.0.0.0', () => {
