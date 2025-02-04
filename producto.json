@@ -1,0 +1,76 @@
+{
+    "nombre": "Cafetera Espresso Pro",
+    "modelo": "No especificado",
+    "tipo": "Cafetera espresso semiautomática",
+    "uso": "Doméstico",
+    "especificaciones_electricas": {
+      "potencia": "850W",
+      "voltaje": "120V",
+      "frecuencia": "50/60 Hz",
+      "consumo_energetico": "Bajo"
+    },
+    "sistema_extraccion": {
+      "tipo_bomba": "Bomba de presión",
+      "presion_bomba": "15 a 20 bares",
+      "tiempo_calentamiento": "Aproximadamente 45 segundos",
+      "metodo_preparacion": "Espresso por presión"
+    },
+    "tanque_agua": {
+      "capacidad": "1.5 litros",
+      "material": "Plástico transparente",
+      "desmontable": true,
+      "indicador_nivel_agua": true
+    },
+    "funciones_controles": {
+      "tipo_control": "Pantalla táctil",
+      "funciones_tactiles": [
+        "Preparación de espresso",
+        "Activación del vaporizador",
+        "Dispensador de agua caliente"
+      ],
+      "modo_apagado_automatico": true,
+      "modo_ahorro_energia": true
+    },
+    "sistema_preparacion_cafe": {
+      "compatibilidad": "Café molido fino para espresso",
+      "numero_tazas": "1 o 2 tazas",
+      "diseno_portafiltro": "Doble filtro de acero inoxidable",
+      "embudos_incluidos": ["Para 1 taza", "Para 2 tazas"]
+    },
+    "vaporizador_leche": {
+      "material": "Acero inoxidable",
+      "tipo": "Boquilla de vapor ajustable",
+      "usos": ["Espumar leche para cappuccino", "Latte y macchiato"],
+      "desmontable": true
+    },
+    "materiales_diseno": {
+      "material_principal": "Acero inoxidable y plástico de alta resistencia",
+      "color": "Acero plateado con detalles en negro",
+      "base_antideslizante": true,
+      "bandeja_goteo": "Extraíble y lavable"
+    },
+    "dimensiones_peso": {
+      "alto_cm": 29,
+      "ancho_cm": 28,
+      "profundidad_cm": 23,
+      "peso_kg": 3.5
+    },
+    "contenido_paquete": [
+      "1 Cafetera Espresso Pro",
+      "1 Mango de filtro de café",
+      "2 Filtros de café (para 1 y 2 tazas)",
+      "1 Cuchara medidora",
+      "1 Manual de usuario"
+    ],
+    "mantenimiento_limpieza": {
+      "frecuencia_limpieza": "Después de cada uso",
+      "descalcificacion_recomendada": "Cada 2-3 meses",
+      "piezas_lavables": ["Bandeja de goteo", "Vaporizador de leche", "Tanque de agua"]
+    },
+    "garantia_soporte": {
+      "duracion_garantia": "12 meses",
+      "soporte_tecnico": "Disponible con servicio al cliente",
+      "condiciones_garantia": "Aplicable a defectos de fábrica"
+    },
+    "link_compra": "https://espressomaquinas.com/tienda/"
+  }
