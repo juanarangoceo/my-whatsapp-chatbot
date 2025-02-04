@@ -3,6 +3,9 @@
     "modelo": "No especificado",
     "tipo": "Cafetera espresso semiautomática",
     "uso": "Doméstico",
+    "precio": "$420.000",
+    "envio_gratis": true,
+    "pago_contraentrega": true,
     "especificaciones_electricas": {
       "potencia": "850W",
       "voltaje": "120V",
@@ -73,4 +76,4 @@
       "condiciones_garantia": "Aplicable a defectos de fábrica"
     },
     "link_compra": "https://espressomaquinas.com/tienda/"
-  }
+}
